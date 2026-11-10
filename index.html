@@ -184,6 +184,11 @@ $('#alert').onclick=()=>toast('Карта тревог — следующий э
 setInterval(()=>{$('#clock').textContent=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   $('#st').textContent=window.FB&&db?'общая карта: вкл':'только у тебя';
   if(cur)$('#tk').textContent='⏱ '+hms(Date.now()-t0)+' · '+km(len(cur))},1000);
-build();drawTr();paintProf();initFB();$('#alert').onclick=()=>window.open('https://alerts.in.ua/','_blank');
+build();drawTr();paintProf();initFB();$('#alert').onclick=()=>window.open('https://alerts.in.ua/','_blank');const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{zIndex:2,maxNativeZoom:18,maxZoom:19,keepBuffer:4,updateWhenZooming:false,attribution:'Esri, Maxar, Earthstar Geographics'});
+const sb=document.createElement('button');sb.className='ui';sb.textContent='🛰️';sb.style.right='10px';sb.style.top='calc(72px + env(safe-area-inset-top,0px))';document.body.append(sb);
+const setSat=on=>{if(on)sat.addTo(map);else map.removeLayer(sat);sb.classList.toggle('sel',on);try{localStorage.setItem('sat',on?'1':'0')}catch(e){}};
+sb.onclick=()=>setSat(!map.hasLayer(sat));
+let s0=false;try{s0=localStorage.getItem('sat')==='1'}catch(e){}
+setSat(s0);
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script></body></html>
