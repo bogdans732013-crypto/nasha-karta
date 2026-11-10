@@ -184,6 +184,6 @@ $('#alert').onclick=()=>toast('Карта тревог — следующий э
 setInterval(()=>{$('#clock').textContent=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
   $('#st').textContent=window.FB&&db?'общая карта: вкл':'только у тебя';
   if(cur)$('#tk').textContent='⏱ '+hms(Date.now()-t0)+' · '+km(len(cur))},1000);
-build();drawTr();paintProf();initFB();
+build();drawTr();paintProf();initFB();$('#alert').onclick=()=>window.open('https://alerts.in.ua/','_blank');
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script></body></html>
