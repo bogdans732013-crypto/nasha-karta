@@ -190,6 +190,21 @@ const setSat=on=>{if(on)sat.addTo(map);else map.removeLayer(sat);sb.classList.to
 sb.onclick=()=>setSat(!map.hasLayer(sat));
 let s0=false;try{s0=localStorage.getItem('sat')==='1'}catch(e){}
 setSat(s0);const dc=document.createElement('div');dc.className='ui card';dc.style.cssText='left:10px;top:calc(84px + env(safe-area-inset-top,0px));font-size:13px;display:none';document.body.append(dc);
-setInterval(()=>{const o=Object.entries(fr).find(([id,u])=>id!==S.uid&&u.la);if(!o||!me){dc.style.display='none';return}const i=frI[o[0]]||{};dc.textContent='👥 '+(i.n||'Друг')+' · '+km(hav(me,[o[1].la,o[1].lo]))+' · '+ago(o[1].t);dc.style.display='block'},2000);
+setInterval(()=>{const o=Object.entries(fr).find(([id,u])=>id!==S.uid&&u.la);if(!o||!me){dc.style.display='none';return}const i=frI[o[0]]||{};dc.textContent='👥 '+(i.n||'Друг')+' · '+km(hav(me,[o[1].la,o[1].lo]))+' · '+ago(o[1].t);dc.style.display='block'},2000);const hb=document.createElement('button');hb.className='ui';hb.textContent='📜';hb.style.right='10px';hb.style.top='calc(130px + env(safe-area-inset-top,0px))';document.body.append(hb);
+const hs=document.createElement('div');hs.className='sheet ui';hs.hidden=true;document.body.append(hs);
+function drawHist(){
+hs.innerHTML='<div class="row"><b style="flex:1;font-size:17px">Мои треки</b><button id="hcl">Закрыть</button></div>';
+if(!S.tracks.length)hs.insertAdjacentHTML('beforeend','<p class="hint">Пока пусто. Нажми ⏺ Трек, пройди маршрут и нажми ⏹ Стоп.</p>');
+S.tracks.map((t,i)=>[t,i]).reverse().forEach(([t,i])=>{
+const d=new Date(t.start),ps=t.pts.map(p=>[p[0],p[1]]);
+const row=document.createElement('div');row.className='row';
+const b=document.createElement('button');b.style.flex='1';b.style.textAlign='left';
+b.textContent=d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'})+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})+' · '+hms(t.end-t.start)+' · '+km(len(t.pts));
+b.onclick=()=>{hs.hidden=true;map.fitBounds(ps,{padding:[40,40]})};
+const x=document.createElement('button');x.className='danger';x.textContent='✕';
+x.onclick=()=>{if(!confirm('Удалить этот трек?'))return;S.tracks.splice(i,1);save();drawTr();drawHist()};
+row.append(b,x);hs.append(row)});
+hs.querySelector('#hcl').onclick=()=>{hs.hidden=true}}
+hb.onclick=()=>{drawHist();hs.hidden=false};
 if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
 </script></body></html>
