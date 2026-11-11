@@ -1,0 +1,240 @@
+<!doctype html>
+<html lang="ru"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#17211f">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<title>Наша карта</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<style>
+:root{--bg:#17211f;--fg:#e4eee9;--panel:#212e2bf5;--mut:#8fa59d;--line:#e4eee93a;--acc:#4fc3ad}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;overflow:hidden}
+#map{position:absolute;inset:0;z-index:0}
+.leaflet-container{background:#cfd8d4;font:inherit}
+.dot{width:44px;height:44px;border-radius:50%;border:3px solid;background:#212e2b center/cover;display:grid;place-items:center;font-size:21px;box-shadow:0 2px 8px #0006}
+.dot.want{border-style:dashed}
+.dot.me{width:48px;height:48px}
+.lb{position:absolute;top:48px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:12px;font-weight:650;color:#111;text-shadow:0 0 3px #fff,0 0 3px #fff,0 0 6px #fff}
+.ui{position:absolute;z-index:1000}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 12px;backdrop-filter:blur(8px)}
+#top{top:calc(10px + env(safe-area-inset-top,0px));left:10px;right:10px;display:flex;justify-content:space-between;gap:8px;pointer-events:none}
+#top>*{pointer-events:auto}
+#clock{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums}
+#st{display:block;font-size:12px;color:var(--mut)}
+#tk{display:none;color:var(--acc);font-weight:650;font-size:13px;font-variant-numeric:tabular-nums}
+button{font:inherit;color:var(--fg);background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px}
+button:focus-visible,input:focus-visible,textarea:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+button.pri{background:var(--acc);color:#10201c;border-color:transparent;font-weight:700}
+button.danger{color:#ff7b6b}
+#bar{bottom:calc(14px + env(safe-area-inset-bottom,0px));left:0;right:0;display:flex;justify-content:center;gap:6px;padding:0 8px}
+#bar button{box-shadow:0 2px 10px #0006;padding:10px 11px}
+#bar button.on{background:var(--acc);color:#10201c}
+#toast{left:50%;top:calc(88px + env(safe-area-inset-top,0px));transform:translateX(-50%);max-width:88%;text-align:center;opacity:0;transition:opacity .25s;pointer-events:none}
+#toast.show{opacity:1}
+.sheet{left:0;right:0;bottom:0;max-height:85%;overflow:auto;background:var(--panel);border-top:1px solid var(--line);border-radius:20px 20px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));z-index:1100;backdrop-filter:blur(10px)}
+.sheet[hidden]{display:none}
+.row{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+.av{width:64px;height:64px;border-radius:50%;border:3px solid var(--acc);background:var(--bg) center/cover;display:grid;place-items:center;font-size:24px;flex:none}
+input[type=text]{flex:1;min-width:0;font:inherit;font-size:17px;color:var(--fg);background:none;border:0;border-bottom:1px solid var(--line);padding:8px 2px}
+textarea{width:100%;font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:10px}
+.sel{background:var(--acc)!important;color:#10201c!important;border-color:transparent!important}
+.hint{font-size:13px;color:var(--mut);margin:0 0 10px}
+.last{justify-content:space-between;margin:12px 0 0}
+</style></head><body>
+<div id="map"></div>
+<div id="top" class="ui">
+  <div class="card"><b id="clock"></b><span id="st"></span><span id="tk"></span></div>
+  <div style="display:flex;gap:8px;align-items:flex-start"><button id="alert">🚨</button><button id="prof" aria-label="Мой профиль">🙂</button></div>
+</div>
+<div id="toast" class="ui card"></div>
+<div id="bar" class="ui"><button id="loc">📍 Я</button><button id="add">＋ Метка</button><button id="trk">⏺ Трек</button><button id="fr">👥 Люди</button></div>
+
+<div id="sheet" class="sheet ui" hidden>
+  <div class="row"><label class="av" id="av">📷<input id="file" type="file" accept="image/*" hidden></label><input id="nm" type="text" placeholder="Название места" maxlength="60"></div>
+  <div class="row" id="types"></div>
+  <div class="row"><button class="seg" data-s="was">✓ Был здесь</button><button class="seg" data-s="want">Хочу сходить</button></div>
+  <textarea id="nt" rows="4" placeholder="Заметка: когда был, что делал, что видел — или зачем хочешь сюда"></textarea>
+  <div class="row last"><button id="del" class="danger">Удалить</button><span style="flex:1"></span><button id="cl">Закрыть</button><button id="sv" class="pri">Сохранить</button></div>
+</div>
+
+<div id="psheet" class="sheet ui" hidden>
+  <div class="row"><label class="av" id="pav">📷<input id="pfile" type="file" accept="image/*" hidden></label><input id="pnm" type="text" placeholder="Твоё имя на карте" maxlength="30"></div>
+  <p class="hint">Нажми на кружок, чтобы поставить своё фото вместо значка.</p>
+  <div class="row"><input id="room" type="text" placeholder="Код комнаты (одинаковый у вас с другом)" maxlength="40" autocapitalize="off"></div>
+  <p class="hint" id="fbst"></p>
+  <div class="row last"><span></span><button id="pcl">Закрыть</button><button id="psv" class="pri">Сохранить</button></div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script src="config.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const TYPES={ruin:['🏚️','#d9822b','Заброшка'],fav:['❤️','#e0467c','Любимое'],want:['🎯','#3b82e6','Цель'],q:['❓','#9467e0','Место с ?']};
+let S={pins:[],tracks:[],name:'',avatar:'',room:'',uid:Math.random().toString(36).slice(2,10),view:[48.46,35.05,13]};
+try{Object.assign(S,JSON.parse(localStorage.getItem('nk2')||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem('nk2',JSON.stringify(S))}catch(e){}};save();
+function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>e.classList.remove('show'),3500)}
+if(typeof L==='undefined'){document.body.innerHTML='<p style="padding:30px">Не загрузилась карта: нет интернета. Открой приложение ещё раз, когда сеть будет лучше.</p>';throw 0}
+
+const map=L.map('map',{zoomControl:false}).setView(S.view.slice(0,2),S.view[2]);
+L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap'}).addTo(map);
+map.on('moveend',()=>{const c=map.getCenter();S.view=[c.lat,c.lng,map.getZoom()];save()});
+const pinsL=L.layerGroup().addTo(map),frL=L.layerGroup().addTo(map),trL=L.layerGroup().addTo(map);
+
+/* метки */
+function build(){
+  pinsL.clearLayers();
+  S.pins.forEach(p=>{const t=TYPES[p.type]||TYPES.q;
+    const ic=L.divIcon({className:'',iconSize:[44,44],iconAnchor:[22,22],html:'<div class="dot'+(p.st==='want'?' want':'')+'" style="border-color:'+t[1]+';'+(p.img?'background-image:url('+p.img+')':'')+'">'+(p.img?'':t[0])+'</div><span class="lb">'+(p.st==='was'?'✓ ':'')+esc(p.name||t[2])+'</span>'});
+    L.marker([p.lat,p.lon],{icon:ic}).on('click',()=>openSheet(p,false)).addTo(pinsL)});
+}
+let addMode=false,sh=null,isNew=false;
+function setAdd(on){addMode=on;$('#add').classList.toggle('sel',on);$('#add').textContent=on?'Нажми на карту':'＋ Метка';if(on)toast('Нажми на место, где нужна метка')}
+$('#add').onclick=()=>setAdd(!addMode);
+map.on('click',e=>{if(!addMode)return;setAdd(false);
+  openSheet({id:Date.now(),lat:e.latlng.lat,lon:e.latlng.lng,type:'q',st:'want',name:'',note:'',img:''},true)});
+const types=$('#types');
+Object.entries(TYPES).forEach(([k,t])=>{const b=document.createElement('button');b.dataset.t=k;b.textContent=t[0]+' '+t[2];b.onclick=()=>{sh.type=k;paint()};types.append(b)});
+document.querySelectorAll('.seg').forEach(b=>b.onclick=()=>{sh.st=b.dataset.s;paint()});
+function paint(){
+  types.querySelectorAll('button').forEach(b=>b.classList.toggle('sel',b.dataset.t===sh.type));
+  document.querySelectorAll('.seg').forEach(b=>b.classList.toggle('sel',b.dataset.s===sh.st));
+  const a=$('#av');a.style.borderColor=(TYPES[sh.type]||TYPES.q)[1];a.style.backgroundImage=sh.img?'url('+sh.img+')':'none';a.firstChild.textContent=sh.img?'':'📷'}
+function openSheet(p,n){sh=Object.assign({},p);isNew=n;$('#nm').value=sh.name||'';$('#nt').value=sh.note||'';$('#del').style.visibility=n?'hidden':'visible';paint();$('#sheet').hidden=false}
+const closeSheet=()=>{$('#sheet').hidden=true;sh=null};
+$('#cl').onclick=closeSheet;
+$('#sv').onclick=()=>{sh.name=$('#nm').value.trim();sh.note=$('#nt').value;
+  const i=S.pins.findIndex(p=>p.id===sh.id);if(i>-1)S.pins[i]=sh;else S.pins.push(sh);
+  save();build();if(db)db.ref(base+'/p/'+sh.id).set(sh);closeSheet()};
+$('#del').onclick=()=>{if(!confirm('Удалить эту метку?'))return;S.pins=S.pins.filter(p=>p.id!==sh.id);save();build();if(db)db.ref(base+'/p/'+sh.id).remove();closeSheet()};
+function photo(input,cb){const f=input.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{const i=new Image();i.onload=()=>{const c=document.createElement('canvas'),s=96,m=Math.min(i.width,i.height);c.width=c.height=s;
+    c.getContext('2d').drawImage(i,(i.width-m)/2,(i.height-m)/2,m,m,0,0,s,s);cb(c.toDataURL('image/jpeg',.82))};i.src=r.result};r.readAsDataURL(f);input.value=''}
+$('#file').onchange=e=>photo(e.target,d=>{sh.img=d;paint()});
+
+/* профиль */
+function paintProf(){const a=$('#pav');a.style.backgroundImage=S.avatar?'url('+S.avatar+')':'none';a.firstChild.textContent=S.avatar?'':'📷';
+  $('#prof').textContent=S.avatar?'':'🙂';$('#prof').style.cssText=S.avatar?'width:48px;height:48px;padding:0;border-radius:50%;border:3px solid #3b82e6;background:center/cover url('+S.avatar+')':''}
+let tmpAv='';
+$('#prof').onclick=()=>{tmpAv=S.avatar;$('#pnm').value=S.name;$('#room').value=S.room;
+  $('#fbst').textContent=window.FB?(db?'Общая карта подключена.':'Введи код комнаты, чтобы видеть друга и общие метки.'):'Общая карта ещё не подключена: пока всё хранится только у тебя.';
+  $('#psheet').hidden=false};
+$('#pfile').onchange=e=>photo(e.target,d=>{tmpAv=d;$('#pav').style.backgroundImage='url('+d+')';$('#pav').firstChild.textContent=''});
+$('#pcl').onclick=()=>$('#psheet').hidden=true;
+$('#psv').onclick=()=>{const oldRoom=S.room;S.name=$('#pnm').value.trim();S.avatar=tmpAv;S.room=$('#room').value.trim().toLowerCase();save();
+  $('#psheet').hidden=true;paintProf();drawMe();
+  if(S.room!==oldRoom&&window.FB){location.reload();return}
+  if(db)db.ref(base+'/i/'+S.uid).set({n:S.name,a:S.avatar})};
+
+/* общая база */
+let db=null,base='',fr={},frI={};
+function initFB(){
+  if(db||!window.FB||typeof firebase==='undefined'||!S.room)return;
+  try{firebase.initializeApp(window.FB);db=firebase.database();base='r/'+S.room;
+    S.pins.forEach(p=>db.ref(base+'/p/'+p.id).set(p));
+    db.ref(base+'/i/'+S.uid).set({n:S.name,a:S.avatar});
+    db.ref(base+'/p').on('value',s=>{S.pins=Object.values(s.val()||{});save();build()});
+    db.ref(base+'/i').on('value',s=>{frI=s.val()||{};drawFr()});
+    db.ref(base+'/u').on('value',s=>{fr=s.val()||{};drawFr()});
+  }catch(e){db=null;toast('Не удалось подключить общую карту')}}
+const ago=t=>{const m=Math.round((Date.now()-t)/60000);return m<1?'сейчас':m<60?m+' мин назад':Math.round(m/60)+' ч назад'};
+function drawFr(){frL.clearLayers();
+  Object.entries(fr).forEach(([id,u])=>{if(id===S.uid||!u.la)return;const i=frI[id]||{},fresh=Date.now()-u.t<20*60000;
+    const ic=L.divIcon({className:'',iconSize:[48,48],iconAnchor:[24,24],html:'<div class="dot me" style="border-color:#e8a33a;opacity:'+(fresh?1:.55)+';'+(i.a?'background-image:url('+i.a+')':'')+'">'+(i.a?'':'🧑')+'</div><span class="lb">'+esc(i.n||'Друг')+' · '+ago(u.t)+'</span>'});
+    L.marker([u.la,u.lo],{icon:ic,zIndexOffset:800}).addTo(frL)});
+  if(typeof ps!=='undefined'&&!ps.hidden)drawPeople()}
+
+/* люди: все, кто есть в комнате */
+const ONLINE=2*60000;
+const others=()=>{const ids=new Set([...Object.keys(frI),...Object.keys(fr)]);ids.delete(S.uid);
+  return[...ids].map(id=>{const u=fr[id]||{},i=frI[id]||{};return{id,n:i.n||'Без имени',la:u.la,lo:u.lo,t:u.t,on:!!u.la&&Date.now()-u.t<ONLINE}})};
+const ps=document.createElement('div');ps.className='sheet ui';ps.hidden=true;document.body.append(ps);
+function drawPeople(){
+  ps.innerHTML='<div class="row"><b style="flex:1;font-size:17px">Люди на карте</b><button id="pcl2">Закрыть</button></div>';
+  const o=others().sort((a,b)=>(b.on-a.on)||a.n.localeCompare(b.n));
+  ps.insertAdjacentHTML('beforeend','<p class="hint">'+(db?'В сети: '+o.filter(x=>x.on).length+' из '+o.length:'Общая карта не подключена: введи код комнаты в профиле 🙂')+'</p>');
+  if(db&&!o.length)ps.insertAdjacentHTML('beforeend','<p class="hint">Пока никого. Когда кто-то войдёт с твоим кодом комнаты, он появится здесь.</p>');
+  o.forEach(x=>{const r=document.createElement('button');r.style.cssText='display:block;width:100%;text-align:left;margin-bottom:8px;opacity:'+(x.on?1:.6);
+    r.textContent=(x.on?'🟢 ':'⚪ ')+x.n+' · '+(x.la?(me?km(hav(me,[x.la,x.lo]))+' · ':'')+(x.on?'в сети':'был '+ago(x.t)):'не передаёт место');
+    r.onclick=()=>{if(!x.la){toast('Он в комнате, но его место не приходит. Проверь доступ к геопозиции у него.');return}ps.hidden=true;map.setView([x.la,x.lo],Math.max(map.getZoom(),15))};ps.append(r)});
+  ps.querySelector('#pcl2').onclick=()=>{ps.hidden=true}}
+$('#fr').onclick=()=>{drawPeople();ps.hidden=false};
+
+/* геолокация и трек */
+let me=null,meM=null,meC=null,watch=null,cur=null,t0=0,first=true,lastPush=0,lock=null;
+function drawMe(){if(!me)return;
+  const ic=L.divIcon({className:'',iconSize:[48,48],iconAnchor:[24,24],html:'<div class="dot me" style="border-color:#3b82e6;'+(S.avatar?'background-image:url('+S.avatar+')':'')+'">'+(S.avatar?'':'🙂')+'</div><span class="lb">'+esc(S.name||'Я')+'</span>'});
+  if(!meM){meM=L.marker(me,{icon:ic,zIndexOffset:900}).addTo(map);meC=L.circle(me,{radius:me.acc||20,color:'#3b82e6',weight:1,fillOpacity:.12}).addTo(map)}
+  else{meM.setLatLng(me).setIcon(ic);meC.setLatLng(me).setRadius(me.acc||20)}}
+const hav=(a,b)=>{const R=6371e3,r=Math.PI/180,x=(b[0]-a[0])*r,y=(b[1]-a[1])*r,q=Math.sin(x/2)**2+Math.cos(a[0]*r)*Math.cos(b[0]*r)*Math.sin(y/2)**2;return 2*R*Math.asin(Math.sqrt(q))};
+const len=p=>p.reduce((s,q,i)=>i?s+hav(p[i-1],q):0,0);
+const hms=ms=>{const s=Math.floor(ms/1e3);return[Math.floor(s/3600),Math.floor(s/60)%60,s%60].map(n=>String(n).padStart(2,'0')).join(':')};
+const km=m=>m<1000?Math.round(m)+' м':(m/1000).toFixed(2)+' км';
+let curL=null;
+function drawTr(){trL.clearLayers();S.tracks.forEach(t=>L.polyline(t.pts.map(p=>[p[0],p[1]]),{color:'#e8a33a',weight:4,opacity:.6}).addTo(trL))}
+function startWatch(){
+  if(watch!==null)return true;
+  if(!navigator.geolocation){toast('Геолокация недоступна на этом устройстве');return false}
+  watch=navigator.geolocation.watchPosition(p=>{
+    me=[p.coords.latitude,p.coords.longitude];me.acc=p.coords.accuracy;drawMe();
+    if(first){first=false;map.setView(me,Math.max(map.getZoom(),16))}
+    if(cur){const l=cur[cur.length-1];if(!l||hav(l,me)>6){cur.push([me[0],me[1],Date.now()]);if(curL)curL.setLatLngs(cur.map(q=>[q[0],q[1]]));else curL=L.polyline(cur.map(q=>[q[0],q[1]]),{color:'#e8a33a',weight:5}).addTo(map)}}
+    if(db&&Date.now()-lastPush>8000){lastPush=Date.now();db.ref(base+'/u/'+S.uid).set({la:me[0],lo:me[1],t:Date.now()})}},
+    err=>{watch=null;toast(err.code===1?'Нет доступа к геопозиции. Разреши её для приложения в настройках телефона':'Не получается определить место, выйди на открытое место')},
+    {enableHighAccuracy:true,maximumAge:3000,timeout:25000});
+  return true}
+$('#loc').onclick=()=>{if(watch===null){startWatch();toast('Ищу тебя…');return}if(me)map.setView(me,Math.max(map.getZoom(),16));else toast('Ещё ищу сигнал…')};
+$('#trk').onclick=async()=>{
+  if(!cur){if(!startWatch())return;cur=me?[[me[0],me[1],Date.now()]]:[];t0=Date.now();$('#trk').textContent='⏹ Стоп';$('#trk').classList.add('on');$('#tk').style.display='block';toast('Трек пошёл');
+    try{lock=await navigator.wakeLock.request('screen')}catch(e){}}
+  else{const d=len(cur),t=Date.now()-t0;if(cur.length>1){S.tracks.push({pts:cur,start:t0,end:Date.now()});S.tracks=S.tracks.slice(-20)}
+    toast('Готово: '+hms(t)+' · '+km(d));cur=null;if(curL){map.removeLayer(curL);curL=null}$('#trk').textContent='⏺ Трек';$('#trk').classList.remove('on');$('#tk').style.display='none';
+    try{lock&&lock.release()}catch(e){}save();drawTr()}};
+setInterval(()=>{$('#clock').textContent=new Date().toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  $('#st').textContent=window.FB&&db?'общая карта: вкл':'только у тебя';
+  if(cur)$('#tk').textContent='⏱ '+hms(Date.now()-t0)+' · '+km(len(cur))},1000);
+build();drawTr();paintProf();initFB();$('#alert').onclick=()=>window.open('https://alerts.in.ua/','_blank');const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{zIndex:2,maxNativeZoom:18,maxZoom:19,keepBuffer:4,updateWhenZooming:false,attribution:'Esri, Maxar, Earthstar Geographics'});
+const sb=document.createElement('button');sb.className='ui';sb.textContent='🛰️';sb.style.right='10px';sb.style.top='calc(72px + env(safe-area-inset-top,0px))';document.body.append(sb);
+const setSat=on=>{if(on)sat.addTo(map);else map.removeLayer(sat);sb.classList.toggle('sel',on);try{localStorage.setItem('sat',on?'1':'0')}catch(e){}};
+sb.onclick=()=>setSat(!map.hasLayer(sat));
+let s0=false;try{s0=localStorage.getItem('sat')==='1'}catch(e){}
+setSat(s0);
+
+/* расстояние до людей: максимум 3 строки, дальше прокрутка, можно свернуть */
+const dc=document.createElement('div');dc.className='ui card';dc.style.cssText='left:10px;top:calc(84px + env(safe-area-inset-top,0px));font-size:13px;display:none;max-width:68%';
+dc.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><b>👥 Рядом</b><button id="dtg" aria-label="Свернуть" style="padding:0 10px;line-height:24px;border-radius:8px">−</button></div><div id="dl" style="max-height:66px;overflow-y:auto;margin-top:4px"></div>';
+document.body.append(dc);L.DomEvent.disableClickPropagation(dc);L.DomEvent.disableScrollPropagation(dc);
+let dcol=false;try{dcol=localStorage.getItem('dcol')==='1'}catch(e){}
+const dl=dc.querySelector('#dl'),dtg=dc.querySelector('#dtg');
+const applyCol=()=>{dl.style.display=dcol?'none':'block';dtg.textContent=dcol?'+':'−';dtg.setAttribute('aria-label',dcol?'Развернуть':'Свернуть')};
+dtg.onclick=()=>{dcol=!dcol;try{localStorage.setItem('dcol',dcol?'1':'0')}catch(e){}applyCol()};
+applyCol();
+setInterval(()=>{const o=others().filter(x=>x.la);if(!o.length||!me){dc.style.display='none';return}
+  o.forEach(x=>x.d=hav(me,[x.la,x.lo]));o.sort((a,b)=>a.d-b.d);
+  const top=dl.scrollTop;
+  dl.innerHTML=o.map(x=>'<div style="line-height:22px;white-space:nowrap;opacity:'+(x.on?1:.6)+'">'+(x.on?'🟢 ':'⚪ ')+esc(x.n)+' · '+km(x.d)+' · '+ago(x.t)+'</div>').join('');
+  dl.scrollTop=top;dc.style.display='block'},2000);
+
+const hb=document.createElement('button');hb.className='ui';hb.textContent='📜';hb.style.right='10px';hb.style.top='calc(130px + env(safe-area-inset-top,0px))';document.body.append(hb);
+const hs=document.createElement('div');hs.className='sheet ui';hs.hidden=true;document.body.append(hs);
+function drawHist(){
+hs.innerHTML='<div class="row"><b style="flex:1;font-size:17px">Мои треки</b><button id="hcl">Закрыть</button></div>';
+if(!S.tracks.length)hs.insertAdjacentHTML('beforeend','<p class="hint">Пока пусто. Нажми ⏺ Трек, пройди маршрут и нажми ⏹ Стоп.</p>');
+S.tracks.map((t,i)=>[t,i]).reverse().forEach(([t,i])=>{
+const d=new Date(t.start),pp=t.pts.map(p=>[p[0],p[1]]);
+const row=document.createElement('div');row.className='row';
+const b=document.createElement('button');b.style.flex='1';b.style.textAlign='left';
+b.textContent=d.toLocaleDateString('ru-RU',{day:'numeric',month:'short'})+' '+d.toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'})+' · '+hms(t.end-t.start)+' · '+km(len(t.pts));
+b.onclick=()=>{hs.hidden=true;map.fitBounds(pp,{padding:[40,40]})};
+const x=document.createElement('button');x.className='danger';x.textContent='✕';
+x.onclick=()=>{if(!confirm('Удалить этот трек?'))return;S.tracks.splice(i,1);save();drawTr();drawHist()};
+row.append(b,x);hs.append(row)});
+hs.querySelector('#hcl').onclick=()=>{hs.hidden=true}}
+hb.onclick=()=>{drawHist();hs.hidden=false};
+if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+</script></body></html>
