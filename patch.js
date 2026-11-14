@@ -319,7 +319,15 @@ function tone(f,d,type,vol,when){
 function sndScore(){tone(880,.07,'square',.07);tone(1320,.12,'square',.07,.07)}
 function sndOver(){tone(300,.15,'sawtooth',.08);tone(220,.15,'sawtooth',.08,.15);tone(150,.3,'sawtooth',.08,.3)}var _tap=tap;tap=function(){ac();_tap()};
 var _step=step;step=function(dt){var s=score;_step(dt);if(score>s)sndScore()};
-var _over=over;over=function(){_over();sndOver()};
+var _over=over;over=function(){_over();sndOver()};var MEL=[523,659,784,659,587,740,880,740,523,659,784,1047,988,784,659,784],mi=0,mt=0;
+function musicStart(){if(mt)return;mt=setInterval(function(){if(muted||state==='over')return;tone(MEL[mi%MEL.length],.2,'triangle',.05);if(mi%4===0)tone(MEL[mi%MEL.length]/2,.4,'sine',.05);mi++},230)}
+function musicStop(){clearInterval(mt);mt=0}
+var _og=openGame;openGame=function(){_og();musicStart();
+if(!document.getElementById('gmmute')){var b=document.createElement('button');b.id='gmmute';b.style.cssText='position:absolute;right:14px;top:calc(60px + env(safe-area-inset-top,0px));background:#0008;color:#fff;border:1px solid #fff4;border-radius:10px;padding:9px 13px;font:inherit';
+var p=function(){b.textContent=muted?'🔇':'🔊'};p();
+b.onclick=function(e){e.stopPropagation();muted=!muted;try{localStorage.setItem('gmute',muted?'1':'0')}catch(x){}p()};
+root.appendChild(b)}};
+var _cg=closeGame;closeGame=function(){_cg();musicStop()};
 var gm=null;
 function openGame(){
   if(!root)build();
