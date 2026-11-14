@@ -327,7 +327,7 @@ if(!document.getElementById('gmmute')){var b=document.createElement('button');b.
 var p=function(){b.textContent=muted?'🔇':'🔊'};p();
 b.onclick=function(e){e.stopPropagation();muted=!muted;try{localStorage.setItem('gmute',muted?'1':'0')}catch(x){}p()};
 root.appendChild(b)}};
-var _cg=closeGame;closeGame=function(){_cg();musicStop()};
+var _cg=closeGame;closeGame=function(){_cg();musicStop()};var _zs=document.createElement('style');_zs.textContent='.gmtop{z-index:10}';document.head.appendChild(_zs);
 var gm=null;
 function openGame(){
   if(!root)build();
