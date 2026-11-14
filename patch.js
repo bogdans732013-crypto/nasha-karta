@@ -450,3 +450,43 @@ var _b=build;
 build=function(){_b();try{pinsL.eachLayer(function(l){l.setZIndexOffset(1100)})}catch(e){}};
 build();
 }catch(e){}})();
+/* 2.9: палитра + игра подальше от людей и меток */
+(function(){try{
+var COLS=['#4fc3ad','#3b82e6','#9467e0','#e0467c','#ff6b5b','#e8a33a','#f2d14b','#5fd068','#e4eee9'];
+var st=document.createElement('style');
+st.textContent='.ib{color:var(--acc)}.pal{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin:0 0 12px}.pal i{display:block;width:32px;height:32px;border-radius:50%;border:2px solid #fff3;box-sizing:border-box}.pal i.on{border-color:#fff;box-shadow:0 0 0 2px #0008}.pal input{width:34px;height:34px;padding:0;border:0;background:none}';
+document.head.appendChild(st);
+var dots=[];
+function paint(c){dots.forEach(function(d){d.classList.toggle('on',d.dataset.c===c)})}
+function setAcc(c){document.documentElement.style.setProperty('--acc',c);try{localStorage.setItem('accent',c)}catch(e){}paint(c)}
+var lab=document.createElement('p');lab.className='hint';lab.textContent='Цвет приложения (кнопки и иконки)';
+var box=document.createElement('div');box.className='pal';
+COLS.forEach(function(c){var d=document.createElement('i');d.style.background=c;d.dataset.c=c;d.onclick=function(){setAcc(c)};box.appendChild(d);dots.push(d)});
+var pk=document.createElement('input');pk.type='color';pk.value='#4fc3ad';pk.oninput=function(){setAcc(pk.value)};box.appendChild(pk);
+var cur='#4fc3ad';try{cur=localStorage.getItem('accent')||cur}catch(e){}
+document.documentElement.style.setProperty('--acc',cur);paint(cur);try{pk.value=cur}catch(e){}
+var f=$('#fbst');f.parentNode.insertBefore(lab,f);f.parentNode.insertBefore(box,f);
+
+var gk=null;
+map.eachLayer(function(l){try{if(l.getIcon&&String(l.getIcon().options.html||'').indexOf('gmi')>-1)gk=l}catch(e){}});
+if(gk){
+  var busy=false;
+  var safe=function(){
+    var c=(me&&me.length)?[me[0],me[1]]:[map.getCenter().lat,map.getCenter().lng];
+    var pts=[];
+    Object.keys(fr).forEach(function(id){var u=fr[id];if(id!==S.uid&&u&&u.la)pts.push([u.la,u.lo])});
+    (S.pins||[]).forEach(function(p){pts.push([p.lat,p.lon])});
+    var best=null,bd=-1;
+    for(var t=0;t<40;t++){
+      var d=400+Math.random()*1100,a=Math.random()*6.2832;
+      var la=c[0]+d*Math.cos(a)/111320,lo=c[1]+d*Math.sin(a)/(111320*Math.cos(c[0]*Math.PI/180));
+      var m=1e9;pts.forEach(function(q){var h=hav([la,lo],q);if(h<m)m=h});
+      if(m>bd){bd=m;best=[la,lo]}
+      if(m>=400)break;
+    }
+    if(best)gk.setLatLng(best);
+  };
+  gk.on('move',function(){if(busy)return;busy=true;try{safe()}catch(e){}busy=false});
+  busy=true;try{safe()}catch(e){}busy=false;
+}
+}catch(e){}})();
