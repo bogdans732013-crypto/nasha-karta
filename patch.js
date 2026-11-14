@@ -351,4 +351,15 @@ function placeGame(){
 }
 placeGame();
 }catch(e){}})();
-                                            
+/* 2.7: ночная тема карты */
+(function(){try{
+var on=false;try{on=localStorage.getItem('night')==='1'}catch(e){}
+var st=document.createElement('style');
+st.textContent='.nightmap{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9)}';
+document.head.appendChild(st);
+var bt=document.createElement('button');bt.className='ib';bt.setAttribute('aria-label','Ночная карта');
+bt.innerHTML='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/></svg>';
+function apply(){map.eachLayer(function(l){if(l._url&&String(l._url).indexOf('openstreetmap')>-1&&l.getContainer){l.getContainer().classList.toggle('nightmap',on)}});bt.classList.toggle('sel',on)}
+bt.onclick=function(){on=!on;try{localStorage.setItem('night',on?'1':'0')}catch(e){}apply();toast(on?'Ночная карта':'Обычная карта')};
+$('#side').append(bt);apply();
+}catch(e){}})();                                           
