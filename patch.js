@@ -363,3 +363,84 @@ function apply(){map.eachLayer(function(l){if(l._url&&String(l._url).indexOf('op
 bt.onclick=function(){on=!on;try{localStorage.setItem('night',on?'1':'0')}catch(e){}apply();toast(on?'Ночная карта':'Обычная карта')};
 $('#side').append(bt);apply();
 }catch(e){}})();                                           
+/* 2.8: я тоже вхожу в кучу людей + игра выше людей */
+(function(){try{
+var TH=52;
+function pf(id){return id===S.uid?{n:S.name||'Я',a:S.avatar||''}:(frI[id]||{})}
+function fresh(m){return m.self||Date.now()-m.u.t<ONLINE}
+function av(m,left){
+  var i=pf(m.id);
+  return '<div class="gpa" style="left:'+left+'px;opacity:'+(fresh(m)?1:.55)+';'+(i.a?'background-image:url('+i.a+')':'')+'">'+(i.a?'':svg(IC.user))+'</div>';
+}
+function grIcon(ms){
+  var n=ms.length;
+  return L.divIcon({className:'',iconSize:[64,48],iconAnchor:[32,24],html:'<div class="gp">'+av(ms[0],0)+av(ms[1],24)+(n>2?'<span class="gn">+'+(n-2)+'</span>':'')+'</div><span class="lb">'+n+' чел.</span>'});
+}
+function openGroup(ms,ll){
+  var box=document.createElement('div');
+  ms.forEach(function(m){
+    var i=pf(m.id),f=fresh(m);
+    var r=document.createElement('div');r.className='gr';
+    r.innerHTML='<div class="gpa" style="opacity:'+(f?1:.55)+';'+(i.a?'background-image:url('+i.a+')':'')+'">'+(i.a?'':svg(IC.user))+'</div><div><b>'+esc(i.n||'Друг')+(m.self?' (я)':'')+'</b><br><small>'+(m.self?'это ты':f?'в сети':ago(m.u.t))+'</small></div>';
+    r.onclick=function(){map.closePopup();if(m.self)return;var o=others().find(function(q){return q.id===m.id});if(o)openPerson(o)};
+    box.appendChild(r);
+  });
+  L.popup({className:'grp',closeButton:false,offset:[0,-22]}).setLatLng(ll).setContent(box).openOn(map);
+}
+drawFr=function(){
+  var seen=new Set(),items=[],k=0;
+  Object.keys(fr).sort().forEach(function(id){
+    var u=fr[id];
+    if(id===S.uid||!u||!u.la)return;
+    var p;try{p=map.latLngToContainerPoint([u.la,u.lo])}catch(e){p={x:k*1000,y:0}}
+    k++;items.push({id:id,u:u,x:p.x,y:p.y});
+  });
+  if(me&&me.length){var q;try{q=map.latLngToContainerPoint([me[0],me[1]])}catch(e){q=null}
+    if(q)items.push({id:S.uid,self:true,u:{la:me[0],lo:me[1],t:Date.now()},x:q.x,y:q.y})}
+  var groups=[];
+  items.forEach(function(it){
+    var g=null;
+    for(var j=0;j<groups.length;j++){if(Math.hypot(groups[j].x-it.x,groups[j].y-it.y)<TH){g=groups[j];break}}
+    if(!g){groups.push({m:[it],x:it.x,y:it.y,la:it.u.la,lo:it.u.lo});return}
+    g.m.push(it);var n=g.m.length;
+    g.x+=(it.x-g.x)/n;g.y+=(it.y-g.y)/n;g.la+=(it.u.la-g.la)/n;g.lo+=(it.u.lo-g.lo)/n;
+  });
+  var meIn=false;
+  groups.forEach(function(g){
+    var key,sig,mkIcon,onClick,zi;
+    if(g.m.length===1){
+      if(g.m[0].self)return;
+      var id=g.m[0].id,u=g.m[0].u,i=frI[id]||{},fr1=Date.now()-u.t<ONLINE,a=i.a||'';
+      key=id;
+      sig=a.length+a.slice(-24)+'|'+(i.n||'')+'|'+fr1+'|'+ago(u.t);
+      mkIcon=function(){return frIcon(i,u,fr1)};
+      onClick=function(){var o=others().find(function(z){return z.id===id});if(o)openPerson(o)};
+      zi=800;
+    }else{
+      if(g.m.some(function(m){return m.self}))meIn=true;
+      key='g:'+g.m.map(function(m){return m.id}).join(',');
+      sig=g.m.map(function(m){var a=pf(m.id).a||'';return a.length+a.slice(-12)+(fresh(m)?1:0)}).join('|');
+      mkIcon=function(){return grIcon(g.m)};
+      onClick=function(){openGroup(g.m,[g.la,g.lo])};
+      zi=950;
+    }
+    seen.add(key);
+    var mk=frMk[key];
+    if(!mk){
+      mk=L.marker([g.la,g.lo],{icon:mkIcon(),zIndexOffset:zi}).addTo(frL);
+      mk._k=sig;mk._c=onClick;
+      mk.on('click',function(){mk._c()});
+      frMk[key]=mk;
+    }else{
+      mk.setLatLng([g.la,g.lo]);mk._c=onClick;
+      if(mk._k!==sig){mk.setIcon(mkIcon());mk._k=sig}
+    }
+  });
+  try{if(meM)meM.setOpacity(meIn?0:1)}catch(e){}
+  Object.keys(frMk).forEach(function(k2){if(!seen.has(k2)){frL.removeLayer(frMk[k2]);delete frMk[k2]}});
+  if(typeof ps!=='undefined'&&!ps.hidden)drawPeople();
+};
+var _dm2=drawMe;drawMe=function(){_dm2();try{drawFr()}catch(e){}};
+try{map.eachLayer(function(l){try{if(l.getIcon&&String(l.getIcon().options.html||'').indexOf('gmi')>-1)l.setZIndexOffset(1000)}catch(e){}})}catch(e){}
+drawFr();
+}catch(e){}})();
