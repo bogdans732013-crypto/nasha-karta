@@ -305,7 +305,21 @@ function frame(t){
   if(state==='play')step(dt);else py=H*.45+Math.sin(t/300)*8;
   draw();
 }
-
+/* звуки */
+var AC=null,muted=false;
+try{muted=localStorage.getItem('gmute')==='1'}catch(e){}
+function ac(){try{if(!AC)AC=new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume()}catch(e){}return AC}
+function tone(f,d,type,vol,when){
+  if(muted)return;var a=ac();if(!a)return;
+  var t=a.currentTime+(when||0),o=a.createOscillator(),g=a.createGain();
+  o.type=type||'square';o.frequency.setValueAtTime(f,t);
+  g.gain.setValueAtTime(vol||.07,t);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+  o.connect(g);g.connect(a.destination);o.start(t);o.stop(t+d+.02);
+}
+function sndScore(){tone(880,.07,'square',.07);tone(1320,.12,'square',.07,.07)}
+function sndOver(){tone(300,.15,'sawtooth',.08);tone(220,.15,'sawtooth',.08,.15);tone(150,.3,'sawtooth',.08,.3)}var _tap=tap;tap=function(){ac();_tap()};
+var _step=step;step=function(dt){var s=score;_step(dt);if(score>s)sndScore()};
+var _over=over;over=function(){_over();sndOver()};
 var gm=null;
 function openGame(){
   if(!root)build();
