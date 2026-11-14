@@ -444,3 +444,9 @@ var _dm2=drawMe;drawMe=function(){_dm2();try{drawFr()}catch(e){}};
 try{map.eachLayer(function(l){try{if(l.getIcon&&String(l.getIcon().options.html||'').indexOf('gmi')>-1)l.setZIndexOffset(1000)}catch(e){}})}catch(e){}
 drawFr();
 }catch(e){}})();
+/* 2.9: метки выше людей */
+(function(){try{
+var _b=build;
+build=function(){_b();try{pinsL.eachLayer(function(l){l.setZIndexOffset(1100)})}catch(e){}};
+build();
+}catch(e){}})();
